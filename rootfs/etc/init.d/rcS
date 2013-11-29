@@ -1,0 +1,146 @@
+#!/bin/sh
+
+PRODUCT=`/bin/kobo_config.sh`;
+[ $PRODUCT != trilogy ] && PREFIX=$PRODUCT-
+
+mount -o remount,noatime,nodiratime /dev/mmcblk0p1 /
+
+PLATFORM=freescale
+if [ `dd if=/dev/mmcblk0 bs=512 skip=1024 count=1 | grep -c "HW CONFIG"` == 1 ]; then
+	PLATFORM=ntx508
+fi
+
+if [ $PLATFORM == freescale ]; then
+	if [ ! -s /lib/firmware/imx/epdc_E60_V220.fw ]; then
+		mkdir -p /lib/firmware/imx
+		dd if=/dev/mmcblk0 bs=512K skip=10 count=1 | zcat > /lib/firmware/imx/epdc_E60_V220.fw
+		sync
+	fi
+fi
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/lib:
+runlevel=S
+prevlevel=N
+umask 022
+export PATH runlevel prevlevel
+
+for i in /proc /dev /root /tmp /sys /mnt/sd /mnt/onboard /mnt/user /var/lib /var/log /var/run /lib/modules/`uname -r`; do
+	[ ! -d $i ] && mkdir -p $i
+done;
+
+/bin/mount -t proc  none  /proc
+/bin/mount -t tmpfs none -o size=16m /tmp
+/bin/mount -t tmpfs none /dev
+/bin/mount -t tmpfs none -o size=16k /var/lib
+/bin/mount -t tmpfs none -o size=16k /var/log
+/bin/mount -t tmpfs none -o size=128k /var/run
+/bin/mount -t sysfs none -o size=500k /sys
+
+for i in /var/run/dbus /var/lib/dbus; do
+	mkdir -p $i
+done
+
+mkfifo /tmp/nickel-hardware-status
+rm -rf /etc/udev/rules.d/70-persistent-net.rules
+
+echo -e '\000\000\000\000' > /proc/sys/kernel/hotplug
+/sbin/udevd -d
+
+if [ $PLATFORM == freescale ] || [ ! -e /etc/udev.tgz ]; then
+	/sbin/udevadm control --env=STARTUP=1
+	/sbin/udevadm trigger
+	/sbin/udevadm settle --timeout=2
+	/sbin/udevadm control --env=STARTUP=
+	[ $PLATFORM != freescale ] && tar cpzf /etc/udev.tgz /dev &
+else
+	zcat /etc/udev.tgz > /dev/null || ( rm -rf /etc/udev.tgz; reboot )
+	tar zxf /etc/udev.tgz -C /
+fi
+
+( usleep 400000; /etc/init.d/on-animator.sh ) &
+
+dosfsck -a -w /dev/mmcblk0p3
+mount -t vfat -o noatime,nodiratime,shortname=mixed,utf8 /dev/mmcblk0p3 /mnt/onboard
+rm -rf /mnt/onboard/fsck*
+rm -rf /mnt/onboard/FSCK*
+rm -rf /usr/local/Kobo/db.tgz
+
+echo -n 8192 > /proc/sys/vm/min_free_kbytes
+echo -n 67108864 > /proc/sys/kernel/shmmax
+
+if [ ! -e /mnt/onboard/.kobo ]; then
+	mkdir -p /mnt/onboard/.kobo
+	tar zxf /usr/local/Kobo/db.tgz -C /mnt/onboard
+	sync
+	echo "Decompressed database"
+fi
+
+if [ -e /mnt/onboard/.kobo/Kobo.tgz ]; then
+	zcat /mnt/onboard/.kobo/Kobo.tgz > /dev/null && tar zxf /mnt/onboard/.kobo/Kobo.tgz -C /usr/local/Kobo/
+	rm /mnt/onboard/.kobo/Kobo.tgz
+	echo "Done upgrading..."
+fi
+                               
+if [ -e /mnt/onboard/.kobo/KoboRoot.tgz ]; then
+	killall on-animator.sh
+	zcat /etc/images/$PREFIX\ghostbuster.raw.gz | /usr/local/Kobo/pickel showpic
+	/etc/init.d/update-animator.sh &
+	zcat /mnt/onboard/.kobo/KoboRoot.tgz > /dev/null && tar zxf /mnt/onboard/.kobo/KoboRoot.tgz -C /
+	if [ -e /mnt/onboard/.kobo/upgrade ]; then
+		/etc/init.d/upgrade-wifi.sh
+		rm -rf /mnt/onboard/.kobo/upgrade
+	fi
+	rm /mnt/onboard/.kobo/KoboRoot.tgz
+	killall update-animator.sh
+	echo "Done upgrading..."
+	zcat /etc/images/$PREFIX\ghostbuster.raw.gz | /usr/local/Kobo/pickel showpic
+	zcat /etc/images/$PREFIX\reboot.raw.gz | /usr/local/Kobo/pickel showpic
+	sync
+	reboot
+fi
+
+(
+	/usr/local/Kobo/pickel disable.rtc.alarm
+
+	if [ ! -e /etc/wpa_supplicant/wpa_supplicant.conf ]; then
+		cp /etc/wpa_supplicant/wpa_supplicant.conf.template /etc/wpa_supplicant/wpa_supplicant.conf
+	fi
+
+	echo 1 > /sys/devices/platform/mxc_dvfs_core.0/enable
+
+	/sbin/hwclock -s -u
+) &
+
+INTERFACE=wlan0
+WIFI_MODULE=ar6000
+if [ $PLATFORM == ntx508 ]; then
+	INTERFACE=eth0
+	WIFI_MODULE=dhd
+fi
+
+export INTERFACE
+export WIFI_MODULE
+
+export QWS_MOUSE_PROTO="tslib_nocal:/dev/input/event1"
+export QWS_KEYBOARD=imx508kbd:/dev/input/event0
+export QWS_DISPLAY=Transformed:imx508:Rot90
+export NICKEL_HOME=/mnt/onboard/.kobo
+export LD_LIBRARY_PATH=/usr/lib:/mnt/onboard/python/lib:/usr/local/Kobo
+export WIFI_MODULE_PATH=/drivers/$PLATFORM/wifi/$WIFI_MODULE.ko
+export LANG=en_US.UTF-8
+export UBOOT_MMC=/etc/u-boot/$PLATFORM/u-boot.mmc
+export UBOOT_RECOVERY=/etc/u-boot/$PLATFORM/u-boot.recovery
+
+/bin/dbus-uuidgen > /var/lib/dbus/machine-id
+/bin/dbus-daemon --system &
+export DBUS_SESSION_BUS_ADDRESS=`/bin/dbus-daemon --session --print-address --fork`
+
+/usr/local/Kobo/hindenburg &
+/bin/mkdir -p /dev/pts
+/bin/mount -t devpts devpts /dev/pts
+/mnt/onboard/run.sh &
+/usr/local/Kobo/nickel -qws -skipFontLoad &
+[ $PLATFORM != freescale ] && udevadm trigger &
+
+#/bin/busybox insmod /drivers/ntx508/usb/gadget/arcotg_udc.ko
+#/bin/busybox insmod /drivers/ntx508/usb/gadget/g_ether.ko

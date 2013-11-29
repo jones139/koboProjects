@@ -1,0 +1,23 @@
+# Ash profile 
+# vim: syntax=sh
+
+# No core files by default
+ulimit -S -c 0 > /dev/null 2>&1
+
+USER="`id -un`"
+LOGNAME=$USER
+PS1='[\u@\h \W]\$ '
+PATH=$PATH
+
+HOSTNAME=`/bin/hostname`
+export USER LOGNAME PS1 PATH
+
+export QWS_KEYBOARD=EbrKeyboard:/dev/button
+export QWS_DISPLAY=EINK
+export QWS_MOUSE_PROTO=TPanel:/dev/ts0
+export QTDIR=/qte
+export LD_LIBRARY_PATH=/usr/lib:/mnt/onboard/.python/lib:/mnt/onboard/.python/pygamelibs:$QTDIR/lib:lib:$LIBRARY_PATH
+
+export BOOTLOADER="1.1.4 (build Aug 01)"
+export KERNEL="2.6.18 (build Aug 01)"
+
