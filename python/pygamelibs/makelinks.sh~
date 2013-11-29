@@ -1,0 +1,11 @@
+#!/bin/sh
+source=/mnt/onboard/.python/pygamelibs
+source=/home/kobo/kobo/python/pygamelibs
+dest=/usr/local/libs/pygame
+dest=/home/kobo/kobo/libs
+echo "source="$source " dest="$dest
+for fname in `ls $source`; do  
+   destfname=$dest/`basename $fname`
+   echo $fname, $destfname
+   ln -s $fname $destfname
+ done
