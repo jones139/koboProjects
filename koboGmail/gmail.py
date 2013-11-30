@@ -21,7 +21,7 @@ import os
 
 from subprocess import call
 
-#os.environ['SDL_NOMOUSE'] = '1'   # Not sure what this does
+os.environ['SDL_NOMOUSE'] = '1'   # Not sure what this does
 
 def to_hex(color):
     ''' convert a colour value into a hexadecimal value 
@@ -79,6 +79,10 @@ def updateDisplay():
     pygame.draw.line(screen, gray, (400, 410), (400, 790))
 
 
+    date = small_font.render("Hello World", True, black, white)
+    date_rect = date.get_rect()
+    date_rect.topleft = 10,15
+    screen.blit(date, date_rect)
 
 
     # Rotate the display to portrait view.
@@ -90,3 +94,6 @@ def updateDisplay():
     convert_to_raw(screen)
     call(["/mnt/onboard/.python/display_raw.sh"])
 
+
+
+updateDisplay()
