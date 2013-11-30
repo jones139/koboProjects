@@ -1,0 +1,15 @@
+[gmailAccount1]
+title: <text to display on screen>
+username: <username>@gmail.com
+password: <password>
+baseURL: https://mail.google.com/
+feedURL: gmail/feed/atom/
+labelFilter: <label>
+
+[gmailAccount2]
+title: <text to display on screen>
+username: <username>@gmail.com
+password: <password>
+baseURL: https://mail.google.com/
+feedURL: gmail/feed/atom/
+labelFilter: <label>

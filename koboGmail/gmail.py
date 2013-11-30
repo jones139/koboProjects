@@ -15,13 +15,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# Based on information from a variety of sources including:
+#    gmail access: http://g33k.wordpress.com/2009/02/04/check-gmail-the-python-way/ 
+#    Kobo display: http://www.mobileread.com/forums/showthread.php?t=194376
+#
 import urllib2
 import pygame
 import os
-
+import ConfigParser
+import feedparser
 from subprocess import call
 
 os.environ['SDL_NOMOUSE'] = '1'   # Not sure what this does
+
+configFname="config.ini"
 
 def to_hex(color):
     ''' convert a colour value into a hexadecimal value 
@@ -46,17 +53,73 @@ def convert_to_raw(surface):
     f.close()
     print("Image converted.")
     
+
+def openConfigFile(fname):
+    '''Open the configuration file 'fname' and return a ConfigParser object
+    that points to the opened file.
+    '''
+    config = ConfigParser.ConfigParser()
+    config.read(fname)
+    return(config)
+
+def getConfigSectionMap(config, section):
+    '''Returns a dictionary containing the config file data in the section
+    specified by the parameter section.   config should be a ConfigParser object
+    pointing to a configuration file.'''
+    dict1 = {}
+    options = config.options(section)
+    for option in options:
+        try:
+            dict1[option] = config.get(section, option)
+            if dict1[option] == -1:
+                DebugPrint("skip: %s" % option)
+        except:
+            print("exception on %s!" % option)
+            dict1[option] = None
+    return dict1
+
 def getGmailData():
+    '''The method to do HTTPBasicAuthentication
+    created based on http://docs.python.org/2/howto/urllib2.html'''
+
+    # Read the config file
+    config = openConfigFile(configFname)
+    print config.sections()
+    configData =  getConfigSectionMap(config,config.sections()[0])
+    print configData
+
+    # Open connection to gmail using the usernam and password specified
+    # in the config file.
+    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    top_level_url = configData['baseurl']
+    username = configData['username']
+    password = configData['password']
+    password_mgr.add_password(None, top_level_url, username, password)
+    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+    opener = urllib2.build_opener(handler)
+
+    # use the opener to fetch a URL
+    fullURL = "%s/%s/%s" % (top_level_url,
+                            configData['feedurl'],
+                            configData['labelfilter'])
+    f = opener.open(fullURL)
+    feed = f.read()
+    atom = feedparser.parse(feed)
+    print ""
+    print atom.feed.title
+    print "You have %s new mails" % len(atom.entries)
     print "getGmailData()"
 
-def updateDisplay():
+    return atom
+
+def updateDisplay(atom):
+    '''Update the kobo display to show the email atom feed atom.'''
     print("Creating Image")
 
     # Define some colours
     white = (255, 255, 255)
     black = (0, 0, 0)
     gray = (125, 125, 125)
-
 
     # Initialise Pygame for drawing to the screen.
     pygame.display.init()
@@ -66,34 +129,45 @@ def updateDisplay():
     screen = pygame.Surface((600, 800))
     screen.fill(white)
 
-    tiny_font = pygame.font.Font("fonts/Cabin-Regular.otf", 18)
-    small_font = pygame.font.Font("fonts/Fabrica.otf", 22)
     font = pygame.font.Font("fonts/Forum-Regular.otf", 40)
-    comfortaa = pygame.font.Font("fonts/Comfortaa-Regular.otf", 60)
-    comfortaa_small = pygame.font.Font("fonts/Comfortaa-Regular.otf", 35)
+    large_font = pygame.font.Font("fonts/Forum-Regular.otf", 100)
+    huge_font = pygame.font.Font("fonts/Forum-Regular.otf", 300)
 
-    # Dividing lines
-    pygame.draw.line(screen, gray, (10, 200), (590, 200))
-    pygame.draw.line(screen, gray, (10, 400), (590, 400))
-    pygame.draw.line(screen, gray, (200, 410), (200, 790))
-    pygame.draw.line(screen, gray, (400, 410), (400, 790))
+    # Now render the data
+    # Atom title
+    txt = font.render(atom.feed.title, True, black, white)
+    txt_rect = txt.get_rect()
+    txt_rect.topleft = 0,0
+    screen.blit(txt, txt_rect)
 
+    str = "You have"
+    txt = large_font.render(str, True, black, white)
+    txt_rect = txt.get_rect()
+    txt_rect.topleft = 0,40
+    screen.blit(txt, txt_rect)
 
-    date = small_font.render("Hello World", True, black, white)
-    date_rect = date.get_rect()
-    date_rect.topleft = 10,15
-    screen.blit(date, date_rect)
+    str = "%d" % len(atom.entries)
+    txt = huge_font.render(str, True, black, white)
+    txt_rect = txt.get_rect()
+    txt_rect.topleft = 100,130
+    screen.blit(txt, txt_rect)
 
+    str = "new Emails!!!"
+    txt = large_font.render(str, True, black, white)
+    txt_rect = txt.get_rect()
+    txt_rect.topleft = 0,400
+    screen.blit(txt, txt_rect)
 
     # Rotate the display to portrait view.
     graphic = pygame.transform.rotate(screen, 90)
     display.blit(graphic, (0, 0))
     pygame.display.update()
     
-    #call(["./full_update"])
-    convert_to_raw(screen)
-    call(["/mnt/onboard/.python/display_raw.sh"])
+    call(["./full_update"])
+    #convert_to_raw(screen)
+    #call(["/mnt/onboard/.python/display_raw.sh"])
 
 
-
-updateDisplay()
+atom = getGmailData()
+print atom.entries[0]
+updateDisplay(atom)
