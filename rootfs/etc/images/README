@@ -1,0 +1,5 @@
+These images have to be in 'raw' format.   Convert from png or other common
+image format to raw using:
+avconv -i SandieMail.png -vf transpose=2 -f rawvideo -pix_fmt rgb565 -s 600x800 -y SandieMail.raw
+
+

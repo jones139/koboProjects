@@ -102,6 +102,7 @@ def getGmailData():
     fullURL = "%s/%s/%s" % (top_level_url,
                             configData['feedurl'],
                             configData['labelfilter'])
+    print "getting data using url %s." % fullURL
     f = opener.open(fullURL)
     feed = f.read()
     atom = feedparser.parse(feed)

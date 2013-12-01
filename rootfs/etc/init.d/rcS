@@ -28,6 +28,7 @@ for i in /proc /dev /root /tmp /sys /mnt/sd /mnt/onboard /mnt/user /var/lib /var
 	[ ! -d $i ] && mkdir -p $i
 done;
 
+
 /bin/mount -t proc  none  /proc
 /bin/mount -t tmpfs none -o size=16m /tmp
 /bin/mount -t tmpfs none /dev
@@ -135,12 +136,45 @@ export UBOOT_RECOVERY=/etc/u-boot/$PLATFORM/u-boot.recovery
 /bin/dbus-daemon --system &
 export DBUS_SESSION_BUS_ADDRESS=`/bin/dbus-daemon --session --print-address --fork`
 
-/usr/local/Kobo/hindenburg &
+# stop the boot-up animation
+killall on-animator.sh
+
+# Show our own splash screen.
+cat /etc/images/SandieMail.raw | /usr/local/Kobo/pickel showpic
+
+# Used to make telnet login work.
 /bin/mkdir -p /dev/pts
 /bin/mount -t devpts devpts /dev/pts
-/mnt/onboard/run.sh &
-/usr/local/Kobo/nickel -qws -skipFontLoad &
+
+# Disable the default kobo applications.
+#/usr/local/Kobo/hindenburg &
+#/usr/local/Kobo/nickel -qws -skipFontLoad &
 [ $PLATFORM != freescale ] && udevadm trigger &
 
-#/bin/busybox insmod /drivers/ntx508/usb/gadget/arcotg_udc.ko
-#/bin/busybox insmod /drivers/ntx508/usb/gadget/g_ether.ko
+#Enable USB networking
+/bin/busybox insmod /drivers/ntx508/usb/gadget/arcotg_udc.ko
+/bin/busybox insmod /drivers/ntx508/usb/gadget/g_ether.ko
+
+# Start wifi networking.
+/bin/sh /etc/network/wifiup.sh > /mnt/onboard/wifiup.log 2>&1
+
+
+# switch off flashing power LED (from http://www.scherello.de/?id=265)
+# See http://www.tablix.org/~avian/blog/archives/2013/03/blinken_kindle/
+# for a description of what these mean - "ch 4" means channel 4, which 
+# is the LED.  "cur 0" sets the led current to zero -can be 0-7.
+# "dc 0" - duty cycle 0 means constantly off, 32 means constantly on.
+echo "ch 4" > /sys/devices/platform/pmic_light.1/lit
+echo "cur 0" > /sys/devices/platform/pmic_light.1/lit
+echo "dc 0" > /sys/devices/platform/pmic_light.1/lit
+
+
+# Source /etc/profile so we have the correct variables set.
+#   - especially LD_LIBRARY_PATH
+source /etc/profile
+
+# Run a user script from the sd card if it exists.
+/mnt/onboard/run.sh &
+
+cd /mnt/onboard/.apps/koboGmail/
+/usr/bin/python gmail.py > /mnt/onboard/gmail.log 2>&1
