@@ -19,12 +19,16 @@
 #    gmail access: http://g33k.wordpress.com/2009/02/04/check-gmail-the-python-way/ 
 #    Kobo display: http://www.mobileread.com/forums/showthread.php?t=194376
 #
+import sys
 import urllib2
 import pygame
 import os
 import ConfigParser
 import feedparser
 from subprocess import call
+
+from wireless import *
+from battery import *
 
 os.environ['SDL_NOMOUSE'] = '1'   # Not sure what this does
 
@@ -103,12 +107,16 @@ def getGmailData():
                             configData['feedurl'],
                             configData['labelfilter'])
     print "getting data using url %s." % fullURL
-    f = opener.open(fullURL)
-    feed = f.read()
-    atom = feedparser.parse(feed)
-    print ""
-    print atom.feed.title
-    print "You have %s new mails" % len(atom.entries)
+    try:
+        f = opener.open(fullURL)
+        feed = f.read()
+        atom = feedparser.parse(feed)
+        print ""
+        print atom.feed.title
+        print "You have %s new mails" % len(atom.entries)
+    except Exception:
+        print "Error accessing gmail"
+        atom = None
     print "getGmailData()"
 
     return atom
@@ -126,7 +134,8 @@ def updateDisplay(atom):
     pygame.display.init()
     pygame.font.init()
     pygame.mouse.set_visible(False)
-    display = pygame.display.set_mode((800, 600), pygame.FULLSCREEN)
+    #display = pygame.display.set_mode((800, 600), pygame.FULLSCREEN)
+    display = pygame.display.set_mode((800, 600))
     screen = pygame.Surface((600, 800))
     screen.fill(white)
 
@@ -135,40 +144,65 @@ def updateDisplay(atom):
     huge_font = pygame.font.Font("fonts/Forum-Regular.otf", 300)
 
     # Now render the data
-    # Atom title
-    txt = font.render(atom.feed.title, True, black, white)
-    txt_rect = txt.get_rect()
-    txt_rect.topleft = 0,0
-    screen.blit(txt, txt_rect)
+    if (atom!=None):
+        # Atom title
+        txt = font.render(atom.feed.title, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 0,0
+        screen.blit(txt, txt_rect)
 
-    str = "You have"
-    txt = large_font.render(str, True, black, white)
-    txt_rect = txt.get_rect()
-    txt_rect.topleft = 0,40
-    screen.blit(txt, txt_rect)
+        str = "You have"
+        txt = large_font.render(str, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 0,40
+        screen.blit(txt, txt_rect)
 
-    str = "%d" % len(atom.entries)
-    txt = huge_font.render(str, True, black, white)
-    txt_rect = txt.get_rect()
-    txt_rect.topleft = 100,130
-    screen.blit(txt, txt_rect)
+        str = "%d" % len(atom.entries)
+        txt = huge_font.render(str, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 100,130
+        screen.blit(txt, txt_rect)
 
-    str = "new Emails!!!"
-    txt = large_font.render(str, True, black, white)
-    txt_rect = txt.get_rect()
-    txt_rect.topleft = 0,400
-    screen.blit(txt, txt_rect)
+        str = "new Emails!!!"
+        txt = large_font.render(str, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 0,400
+        screen.blit(txt, txt_rect)
+    else:
+        str = "Error Accessing Gmail"
+        txt = large_font.render(str, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 0,400
+        screen.blit(txt, txt_rect)
+        
+
+    # Display Wifi Image
+    wifiImg = getWirelessIcon()
+    screen.blit(wifiImg,(0,0))
+
+    # Display Battery Image
+    batImg = getBatteryIcon()
+    screen.blit(batImg,(40,0))
 
     # Rotate the display to portrait view.
     graphic = pygame.transform.rotate(screen, 90)
     display.blit(graphic, (0, 0))
+
+    # Only do this for testing to keep the window visible on pc screen.
+    while True: # main game loop 
+        for event in pygame.event.get(): 
+            if event.type == pygame.QUIT: 
+                pygame.quit() 
+                sys.exit() 
+        pygame.display.update()
+
     pygame.display.update()
     
-    call(["./full_update"])
+    #call(["./full_update"])
     #convert_to_raw(screen)
     #call(["/mnt/onboard/.python/display_raw.sh"])
 
 
 atom = getGmailData()
-print atom.entries[0]
+#print atom.entries[0]
 updateDisplay(atom)
