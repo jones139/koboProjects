@@ -23,6 +23,7 @@ import sys
 import urllib2
 import pygame
 import os
+import time
 import ConfigParser
 import feedparser
 from subprocess import call
@@ -134,8 +135,8 @@ def updateDisplay(atom):
     pygame.display.init()
     pygame.font.init()
     pygame.mouse.set_visible(False)
-    #display = pygame.display.set_mode((800, 600), pygame.FULLSCREEN)
-    display = pygame.display.set_mode((800, 600))
+    display = pygame.display.set_mode((800, 600), pygame.FULLSCREEN)
+    #display = pygame.display.set_mode((800, 600))
     screen = pygame.Surface((600, 800))
     screen.fill(white)
 
@@ -189,20 +190,20 @@ def updateDisplay(atom):
     display.blit(graphic, (0, 0))
 
     # Only do this for testing to keep the window visible on pc screen.
-    while True: # main game loop 
-        for event in pygame.event.get(): 
-            if event.type == pygame.QUIT: 
-                pygame.quit() 
-                sys.exit() 
-        pygame.display.update()
+    #while True: # main game loop 
+    #    for event in pygame.event.get(): 
+    #        if event.type == pygame.QUIT: 
+    #            pygame.quit() 
+    #            sys.exit() 
+    #    pygame.display.update()
 
     pygame.display.update()
     
-    #call(["./full_update"])
+    call(["./full_update"])
     #convert_to_raw(screen)
     #call(["/mnt/onboard/.python/display_raw.sh"])
 
-
-atom = getGmailData()
-#print atom.entries[0]
-updateDisplay(atom)
+while True:
+    atom = getGmailData()
+    updateDisplay(atom)
+    time.sleep(10)

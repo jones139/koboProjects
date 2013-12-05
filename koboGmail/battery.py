@@ -63,13 +63,15 @@ def getBatteryIcon():
         cap = 100
 
     print status
-    if status=="charging":
+    if status=="Charging":
         chargeStr = "-charging"
+    elif status=="no battery":
+        chargeStr = "-nobattery"
     else:
         chargeStr = ""
 
     if (cap<0):
-        fname = "%s/%snobattery%s.png" % (iconDir,iconFnameBase,chargeStr)
+        fname = "%s/%s-nobattery.png" % (iconDir,iconFnameBase)
         print "no battery"
     else:
         fname = "%s/%s%03d%s.png" % (iconDir,iconFnameBase,cap,chargeStr)

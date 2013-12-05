@@ -34,15 +34,15 @@ def getWirelessIcon():
     current image quality.   Uses images in the ./images directory to get
     the icon image.
     """
-    qual = getWirelessQuality()
-    print qual
-    if (qual<0):
+    q = getWirelessQuality()
+    print q
+    if (q < 0):
         qual = -1
-    elif (qual <12.5):
+    elif (q < 1):
         qual = 0
-    elif (qual <37.5):
+    elif (q < 2):
         qual =  25
-    elif (qual<75):
+    elif (q < 3):
         qual = 50
     else:
         qual = 100
