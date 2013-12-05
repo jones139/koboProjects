@@ -58,20 +58,13 @@ def convert_to_raw(surface):
     f.close()
     print("Image converted.")
     
-
-def openConfigFile(fname):
-    '''Open the configuration file 'fname' and return a ConfigParser object
-    that points to the opened file.
-    '''
-    config = ConfigParser.ConfigParser()
-    config.read(fname)
-    return(config)
-
-def getConfigSectionMap(config, section):
+def getConfigSectionMap(configFname, section):
     '''Returns a dictionary containing the config file data in the section
     specified by the parameter section.   config should be a ConfigParser object
     pointing to a configuration file.'''
     dict1 = {}
+    config = ConfigParser.ConfigParser()
+    config.read(configFname)
     options = config.options(section)
     for option in options:
         try:
@@ -83,14 +76,15 @@ def getConfigSectionMap(config, section):
             dict1[option] = None
     return dict1
 
-def getGmailData():
+def getGmailData(filter = False):
     '''The method to do HTTPBasicAuthentication
-    created based on http://docs.python.org/2/howto/urllib2.html'''
+    created based on http://docs.python.org/2/howto/urllib2.html.
+    If Filter is true it uses the label specified in the config file
+    to return data for only the specified gmail label.  If Filter is
+    False it returns data for all emails.'''
 
     # Read the config file
-    config = openConfigFile(configFname)
-    print config.sections()
-    configData =  getConfigSectionMap(config,config.sections()[0])
+    configData =  getConfigSectionMap(configFname,'gmailAccount')
     print configData
 
     # Open connection to gmail using the usernam and password specified
@@ -104,9 +98,13 @@ def getGmailData():
     opener = urllib2.build_opener(handler)
 
     # use the opener to fetch a URL
-    fullURL = "%s/%s/%s" % (top_level_url,
-                            configData['feedurl'],
-                            configData['labelfilter'])
+    if (filter):
+        fullURL = "%s/%s/%s" % (top_level_url,
+                                configData['feedurl'],
+                                configData['labelfilter'])
+    else:
+        fullURL = "%s/%s" % (top_level_url,
+                                configData['feedurl'])
     print "getting data using url %s." % fullURL
     try:
         f = opener.open(fullURL)
@@ -122,7 +120,7 @@ def getGmailData():
 
     return atom
 
-def updateDisplay(atom):
+def updateDisplay():
     '''Update the kobo display to show the email atom feed atom.'''
     print("Creating Image")
 
@@ -141,34 +139,63 @@ def updateDisplay(atom):
     screen.fill(white)
 
     font = pygame.font.Font("fonts/Forum-Regular.otf", 40)
-    large_font = pygame.font.Font("fonts/Forum-Regular.otf", 100)
-    huge_font = pygame.font.Font("fonts/Forum-Regular.otf", 300)
+    large_font = pygame.font.Font("fonts/Forum-Regular.otf", 70)
+    huge_font = pygame.font.Font("fonts/Forum-Regular.otf", 250)
+
+    # get the email data
+    atom_all = getGmailData()
+    atom_filtered = getGmailData(True)
+
+    # Get configuration data
+    configData =  getConfigSectionMap(configFname,'gmailAccount')
+
 
     # Now render the data
-    if (atom!=None):
+    if (atom_all!=None):
         # Atom title
-        txt = font.render(atom.feed.title, True, black, white)
+        txt = font.render(configData['title'], True, black, white)
         txt_rect = txt.get_rect()
-        txt_rect.topleft = 0,0
+        txt_rect.topleft = 0,45
         screen.blit(txt, txt_rect)
 
         str = "You have"
         txt = large_font.render(str, True, black, white)
         txt_rect = txt.get_rect()
-        txt_rect.topleft = 0,40
+        txt_rect.topleft = 0,80
         screen.blit(txt, txt_rect)
 
-        str = "%d" % len(atom.entries)
+        str = "%2d" % len(atom_all.entries)
         txt = huge_font.render(str, True, black, white)
         txt_rect = txt.get_rect()
-        txt_rect.topleft = 100,130
+        txt_rect.topleft = 600-txt_rect.width,50
         screen.blit(txt, txt_rect)
 
-        str = "new Emails!!!"
+        str = "new Emails!"
         txt = large_font.render(str, True, black, white)
         txt_rect = txt.get_rect()
-        txt_rect.topleft = 0,400
+        txt_rect.topleft = 0,200
         screen.blit(txt, txt_rect)
+        
+        str = "Including %d important ones." % len(atom_filtered.entries)
+        txt = font.render(str, True, black, white)
+        txt_rect = txt.get_rect()
+        txt_rect.topleft = 0,300
+        screen.blit(txt, txt_rect)
+
+        maxList = 10
+        ybase = 350
+        ystep = 40
+        if len(atom_all.entries)<maxList:
+            maxList = len(atom_all.entries)
+        for i in range(maxList):
+            y = ybase+ystep*i
+            txtStr = "%s (%s)" % (atom_all.entries[i].author.split('(')[0],
+                                  atom_all.entries[i].title)
+            txt = font.render(txtStr,True, black, white)
+            txt_rect = txt.get_rect()
+            txt_rect.topleft = 0,y
+            screen.blit(txt, txt_rect)
+
     else:
         str = "Error Accessing Gmail"
         txt = large_font.render(str, True, black, white)
@@ -179,11 +206,11 @@ def updateDisplay(atom):
 
     # Display Wifi Image
     wifiImg = getWirelessIcon()
-    screen.blit(wifiImg,(0,0))
+    screen.blit(wifiImg,(0,5))
 
     # Display Battery Image
     batImg = getBatteryIcon()
-    screen.blit(batImg,(40,0))
+    screen.blit(batImg,(40,5))
 
     # Rotate the display to portrait view.
     graphic = pygame.transform.rotate(screen, 90)
@@ -204,6 +231,5 @@ def updateDisplay(atom):
     #call(["/mnt/onboard/.python/display_raw.sh"])
 
 while True:
-    atom = getGmailData()
-    updateDisplay(atom)
+    updateDisplay()
     time.sleep(10)

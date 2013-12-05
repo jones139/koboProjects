@@ -5,7 +5,7 @@ import random
 
 TEST = False
 iconDir = "./images"
-iconFnameBase = "gpm-battery-"
+iconFnameBase = "gpm-battery"
 
 batteryDir = "/sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat"
 statusFile = "status"
@@ -74,7 +74,7 @@ def getBatteryIcon():
         fname = "%s/%s-nobattery.png" % (iconDir,iconFnameBase)
         print "no battery"
     else:
-        fname = "%s/%s%03d%s.png" % (iconDir,iconFnameBase,cap,chargeStr)
+        fname = "%s/%s-%03d%s.png" % (iconDir,iconFnameBase,cap,chargeStr)
     print fname
     iconImg = pygame.image.load(fname)
     return iconImg
