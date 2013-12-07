@@ -212,6 +212,13 @@ def updateDisplay():
     batImg = getBatteryIcon()
     screen.blit(batImg,(40,5))
 
+    # Display Time
+    txtStr = time.strftime("%d/%m/%Y %H:%M")
+    txt = font.render(txtStr, True, black, white)
+    txt_rect = txt.get_rect()
+    txt_rect.topleft = 600-5-txt_rect.width,0
+    screen.blit(txt, txt_rect)
+
     # Rotate the display to portrait view.
     graphic = pygame.transform.rotate(screen, 90)
     display.blit(graphic, (0, 0))
@@ -232,4 +239,4 @@ def updateDisplay():
 
 while True:
     updateDisplay()
-    time.sleep(10)
+    time.sleep(60)
